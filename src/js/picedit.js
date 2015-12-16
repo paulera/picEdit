@@ -23,11 +23,14 @@
         defaults = {
 			imageUpdated: function(img){},	// Image updated callback function
 			formSubmitted: function(res){},	// After form was submitted callback function
+			fileLoaded: function(file){},	// After a file is loaded into the canvas
+			fileNameChanged: function(filename){},	// After content is loaded into the canvas from either URL or file
 			redirectUrl: false,				// Page url for redirect on form submit
 			maxWidth: 400,					// Max width parameter
 			maxHeight: 'auto',				// Max height parameter
 			aspectRatio: true,				// Preserve aspect ratio
-            defaultImage: false             // Default image to be used with the plugin
+            defaultImage: false,            // Default image to be used with the plugin
+            defaultMessageTimeout: 3000		// Default timeout to autohide messages (milliseconds)
         };
 
     // The actual plugin constructor
@@ -128,7 +131,13 @@
 					}
 					var reader = new FileReader();
 					reader.onload = function(e) { 
-						_this._create_image_with_datasrc(e.target.result, false, file); 
+						_this._create_image_with_datasrc(e.target.result, false, file);
+						_this.options.fileLoaded(file);
+						if (file.name != _this._filename) {
+							_this._filename = file.name;
+							_this.options.fileNameChanged(file.name);
+						}
+						
 					};
 					reader.readAsDataURL(file);
 				 }
@@ -222,6 +231,13 @@
         // Set the default Image
         set_default_image: function (path) {
             this._create_image_with_datasrc(path, false, false, true);
+            var m = path.match(/.*\/(.+?)[\?#]/);
+            if (m && m.length > 1) {
+            	this._filename = m[1];
+            } else {
+            	this._filename = path;
+            }
+            this.options.fileNameChanged(this._filename);
         },
 		// Remove all notification copy and hide message box
 		hide_messagebox: function () {
@@ -238,7 +254,7 @@
 		},
 		// Open message box alert with defined text autohide after number of milliseconds, display loading spinner
 		set_messagebox: function (text, autohide, closebutton) {
-			autohide = typeof autohide !== 'undefined' ? autohide : 3000;
+			autohide = typeof autohide !== 'undefined' ? autohide : this.options.defaultMessageTimeout;
 			closebutton = typeof closebutton !== 'undefined' ? closebutton : true;
 			this._messagebox.addClass("active");
 			if(closebutton) {
@@ -437,6 +453,7 @@
 				_this.options.imageUpdated(_this._image);
 				_this._mainbuttons.removeClass("active");
 				if(callback && typeof(callback) == "function") callback();
+				img.onload=null;
 			};
 		},
 		// Functions to controll cropping functionality (drag & resize cropping box)
